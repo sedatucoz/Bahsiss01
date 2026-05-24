@@ -1,0 +1,55 @@
+name: Build APK
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodu çek
+        uses: actions/checkout@v4
+
+      - name: Java kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: ZIP Dosyasını Çıkar
+        run: |
+          if [ -f *"Bahşiş"*.zip ] || [ -f *.zip ]; then
+            unzip *.zip
+            rm *.zip
+          else
+            echo "ZIP dosyası bulunamadı, mevcut klasörlerle devam ediliyor."
+          fi
+
+      - name: Projeyi Bul ve APK Oluştur
+        run: |
+          # İçinde settings.gradle olan klasörü otomatik buluyoruz
+          PROJECT_DIR=$(find . -name "settings.gradle" -o -name "settings.gradle.kts" | head -n 1 | xargs -r dirname)
+          
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "HATA: ZIP içerisinden settings.gradle çıkmadı! Lütfen doğru projeyi ZIP'lediğinizden emin olun."
+            exit 1
+          fi
+          
+          cd "$PROJECT_DIR"
+          
+          # Gradle wrapper yoksa oluştur
+          if [ ! -f "./gradlew" ]; then
+            gradle wrapper
+          fi
+          
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+
+      - name: APK yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: "**/build/outputs/apk/debug/*.apk"
