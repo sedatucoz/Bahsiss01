@@ -19,32 +19,30 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: ZIP Dosyasını Çıkar
+      - name: ZIP Dosyasını Sorunsuz Çıkar
         run: |
+          # -o parametresi sunucunun soru sormasını engeller, direkt üzerine yazar
           if [ -f *"Bahşiş"*.zip ] || [ -f *.zip ]; then
-            unzip *.zip
+            unzip -o *.zip
             rm *.zip
-          else
-            echo "ZIP dosyası bulunamadı, mevcut klasörlerle devam ediliyor."
           fi
 
-      - name: Projeyi Bul ve APK Oluştur
+      - name: İmza Dosyasını (Keystore) Hazırla
         run: |
-          # İçinde settings.gradle olan klasörü otomatik buluyoruz
-          PROJECT_DIR=$(find . -name "settings.gradle" -o -name "settings.gradle.kts" | head -n 1 | xargs -r dirname)
-          
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "HATA: ZIP içerisinden settings.gradle çıkmadı! Lütfen doğru projeyi ZIP'lediğinizden emin olun."
-            exit 1
+          # Eğer içeriden base64 kodlu imza dosyası çıktıysa onu çözüyoruz
+          if [ -f "debug.keystore.base64" ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          elif [ -f "app/debug.keystore.base64" ]; then
+            base64 -d app/debug.keystore.base64 > debug.keystore
+          else
+            # Yoksa sıfırdan standart bir tane üretiyoruz ki hata vermesin
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
-          
-          cd "$PROJECT_DIR"
-          
-          # Gradle wrapper yoksa oluştur
-          if [ ! -f "./gradlew" ]; then
-            gradle wrapper
-          fi
-          
+
+      - name: Gradle Wrapper Kur ve APK Oluştur
+        run: |
+          # Dosyalar artık ana dizinde olduğu için direkt wrapper kuruyoruz
+          gradle wrapper
           chmod +x ./gradlew
           ./gradlew assembleDebug
 
