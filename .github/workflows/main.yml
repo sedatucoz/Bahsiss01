@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+# Node.js 20 uyarılarını kapatmak ve Node.js 24'e zorlamak için çevre değişkeni ekledik
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,7 +25,6 @@ jobs:
 
       - name: ZIP Dosyasını Sorunsuz Çıkar
         run: |
-          # -o parametresi sunucunun soru sormasını engeller, direkt üzerine yazar
           if [ -f *"Bahşiş"*.zip ] || [ -f *.zip ]; then
             unzip -o *.zip
             rm *.zip
@@ -29,19 +32,16 @@ jobs:
 
       - name: İmza Dosyasını (Keystore) Hazırla
         run: |
-          # Eğer içeriden base64 kodlu imza dosyası çıktıysa onu çözüyoruz
           if [ -f "debug.keystore.base64" ]; then
             base64 -d debug.keystore.base64 > debug.keystore
           elif [ -f "app/debug.keystore.base64" ]; then
             base64 -d app/debug.keystore.base64 > debug.keystore
           else
-            # Yoksa sıfırdan standart bir tane üretiyoruz ki hata vermesin
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
       - name: Gradle Wrapper Kur ve APK Oluştur
         run: |
-          # Dosyalar artık ana dizinde olduğu için direkt wrapper kuruyoruz
           gradle wrapper
           chmod +x ./gradlew
           ./gradlew assembleDebug
@@ -51,3 +51,4 @@ jobs:
         with:
           name: app-debug
           path: "**/build/outputs/apk/debug/*.apk"
+          
